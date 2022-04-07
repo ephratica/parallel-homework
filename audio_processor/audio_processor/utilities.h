@@ -18,6 +18,36 @@ class DFT {
 		return true;
 	}
 public:
+	static void mydft(Complex *data, int len)	//普通DFT
+	{
+		Complex *tmp = new Complex[len];
+		memset(tmp, 0, sizeof(Complex) * len);
+		for (int i = 0; i < len; i++)
+		{
+			Complex wni(cos(-2 * PI * i / len), sin(-2 * PI * i / len));
+			Complex t(1, 0);
+			for (int j = 0; j < len; j++)
+				tmp[i] = tmp[i] + data[j] * t, t = t * wni;
+		}
+		for (int i = 0; i < len; i++)
+			data[i] = tmp[i];
+		delete[] tmp;
+	}
+	static void myidft(Complex *data, int len)	//普通DFT
+	{
+		Complex *tmp = new Complex[len];
+		memset(tmp, 0, sizeof(Complex) * len);
+		for (int i = 0; i < len; i++)
+		{
+			Complex wni(cos(2 * PI * i / len), sin(2 * PI * i / len));
+			Complex t(1, 0);
+			for (int j = 0; j < len; j++)
+				tmp[i] = tmp[i] + data[j] * t, t = t * wni;
+		}
+		for (int i = 0; i < len; i++)
+			data[i] = (1.0 / len) * tmp[i];
+		delete[] tmp;
+	}
 	static void dft(Complex *data, int len)		// fft的名字被抢了 QAQ
 	{
 		assert(ispow2(len));
@@ -44,26 +74,34 @@ Complex *FtoC(float *f, int len)
 		c[i] = f[i];
 	return c;
 }
-Complex *double_length(Complex *c, int len)
-{
-	int len2 = 2 * len;
-	Complex *c2 = new Complex[len2];
-	for (int i = 0; i < len - 1; i++)
-		c2[i * 2] = c[i], c2[i * 2 + 1] = c[i];// 0.5 * (c[i] + c[i + 1]);
-	c2[len * 2 - 2] = c2[len * 2 - 1] = c[len - 1];
-	return c2;
-}
 
-std::pair<float *, int> stretch(float *data, int len, float rate)
+std::pair<float *, int> stretch(float *data, int len, int newlen)
 {
-	int newlen = len * rate;
+	float rate = (float)newlen / len;
 	float *newdata = new float[newlen];
 	for (int i = 0; i < newlen; i++)
-		newdata[i] = data[(int)(i / rate)];
+	{
+		float pos = i / rate;
+		int left = (int)pos, right = left + 1;
+		newdata[i] = data[left] * (right - pos) + data[right] * (pos - left);
+	}
+	return { newdata, newlen };
+}
+std::pair<Complex *, int> stretch(Complex *data, int len, int newlen)
+{
+	float rate = (float)newlen / len;
+	Complex *newdata = new Complex[newlen];
+	for (int i = 0; i < newlen; i++)
+	{
+		float pos = i / rate;
+		int left = (int)pos, right = left + 1;
+		newdata[i] = data[left] * (right - pos) + data[right] * (pos - left);
+	}
+	newdata[newlen - 1] = data[len - 1];
 	return { newdata, newlen };
 }
 
-std::pair<float *, int> time_scale(float *data, int len, float rate)
+std::pair<float *, int> time_scale(float *data, int len, float rate, bool usefft = true)
 {
 	const int seglen = 1024;
 	len = len / seglen * seglen;
@@ -80,7 +118,7 @@ std::pair<float *, int> time_scale(float *data, int len, float rate)
 		while (p < newlen) newdata[p++] = 0;
 		return { newdata,newlen };
 	}
-//	rate = 2;
+
 	int newlen = len * rate;
 	float *ret = new float[newlen];
 	int cur = 0, len_per_step = seglen * rate;
@@ -89,9 +127,9 @@ std::pair<float *, int> time_scale(float *data, int len, float rate)
 		Complex *t = new Complex[seglen];
 		for (int j = 0; j < seglen; j++)
 			t[j] = data[i + j];
-		DFT::dft(t, seglen);
-		Complex *p = double_length(t, seglen);
-		DFT::idft(p, seglen * 2);
+		(usefft ? DFT::dft : DFT::mydft)(t, seglen);
+		Complex *p = stretch(t, seglen, usefft?2*seglen:len_per_step).first;
+		(usefft ? DFT::idft : DFT::myidft)(p, usefft ? 2 * seglen : len_per_step);
 		for (int j = 0; j < len_per_step; j++)
 			ret[cur + j] = p[j].x;// sqrt(p[j].x * p[j].x + p[j].y * p[j].y);
 		cur += len_per_step;
@@ -100,6 +138,21 @@ std::pair<float *, int> time_scale(float *data, int len, float rate)
 	}
 	while (cur < newlen) ret[cur++] = 0;
 	return { ret,newlen };
+}
+
+std::pair<float *, int> filter(float *data, int len)
+{
+	float *ret = new float[len];
+	memset(ret, 0, sizeof(float) * len);
+	for (int i = -2; i <= 2; i++)
+		for (int j = 0; j < len; j++)
+			if (j + i >= 0 && j + i < len)
+				ret[j + i] += data[j];
+	for (int i = 2; i < len - 2; i++)
+		ret[i] /= 5;
+	ret[1] /= 4, ret[len - 1] /= 4;
+	ret[0] /= 3, ret[len] /= 3;
+	return { data,len };
 }
 
 std::pair<float *, int> read(char *path)
