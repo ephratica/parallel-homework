@@ -1,4 +1,4 @@
-﻿  main.cpp
+﻿  temp.x86.cpp
 D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\FFT.h(42,34): warning C4244: “参数”: 从“double”转换到“float”，可能丢失数据
 D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\FFT.h(42,17): warning C4244: “参数”: 从“double”转换到“float”，可能丢失数据
 D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\utilities.h(27,43): warning C4244: “参数”: 从“double”转换到“float”，可能丢失数据
@@ -10,7 +10,34 @@ D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_proce
 D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\utilities.h(114,16): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
 D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\utilities.h(122,13): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
 D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\utilities.h(124,28): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
-C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.31.31103\include\arm_neon.h(21,1): fatal error C1189: #error:  This header is specific to ARM targets
-  temp.cpp
-C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.31.31103\include\arm_neon.h(21,1): fatal error C1189: #error:  This header is specific to ARM targets
-  正在生成代码...
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(50,49): warning C4305: “参数”: 从“double”到“float”截断
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(85,11): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(85,26): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(85,47): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(85,68): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(86,8): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(86,29): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(86,50): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(86,71): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(127,17): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(182,20): warning C4244: “参数”: 从“double”转换到“_Ty”，可能丢失数据
+          with
+          [
+              _Ty=float
+          ]
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(183,20): warning C4244: “参数”: 从“double”转换到“_Ty”，可能丢失数据
+          with
+          [
+              _Ty=float
+          ]
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(197,20): warning C4244: “参数”: 从“double”转换到“_Ty”，可能丢失数据
+          with
+          [
+              _Ty=float
+          ]
+D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\audio_processor\temp.x86.cpp(199,20): warning C4244: “参数”: 从“double”转换到“_Ty”，可能丢失数据
+          with
+          [
+              _Ty=float
+          ]
+  audio_processor.vcxproj -> D:\ddw\school\并行程序设计\期末作业\repo\parallel-homework\audio_processor\x64\Debug\audio_processor.exe

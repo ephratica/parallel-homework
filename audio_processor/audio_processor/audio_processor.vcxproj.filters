@@ -18,7 +18,7 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="temp.cpp">
+    <ClCompile Include="temp.x86.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -30,9 +30,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="utilities.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="SIMD.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -3,35 +3,56 @@
 #include<cstdio>
 #include <arm_neon.h>
 
+class Constants {
+public:
+	static const int MAXN = 1000000;
+	int *numbers;
+	int *ones;
+
+	Constants()
+	{
+		numbers = new int[MAXN];
+		ones = new int[MAXN];
+		for (int i = 0; i < MAXN; i++)
+			numbers[i] = i, ones[i] = 1;
+	}
+	~Constants() { delete[] numbers, delete[] ones; }
+} constants;
+
 namespace simd {
 
-	class Constants {
-	public:
-		static const int MAXN = 100000;
-		static int numbers[MAXN];
-		static int ones[MAXN];
-
-		Constants()
-		{
-			for (int i = 0; i < MAXN; i++)
-				numbers[i] = i, ones[i] = 1;
-		}
-	} constants;
-
-	void test()
+	std::pair<float *, int> filter(float *data, int len)
 	{
-		float a[] = { 1,2,3,4 };
-		float b[] = { 0.10,0.20,0.30,0.40 };
-		int n[4];
-		float32x4_t va = vld1q_f32(a);
-		float32x4_t vb = vld1q_f32(b);
-		float32x4_t vc = vaddq_f32(va, vb);
-		vst1q_f32(a, vc);
-		printf("%f %f %f %f\n", a[0], a[1], a[2], a[3]);
-		int32x4_t vint = vcvtq_s32_f32(va);
-		vst1q_s32(n, vint);
-		printf("%d %d %d %d\n", n[0], n[1], n[2], n[3]);
+		float *ret = new float[len + 4];
+		memset(ret, 0, sizeof(float) * (len + 4));
+		ret += 2;
+		int len4 = len / 4 * 4;
+		for (int i = -2; i <= 2; i++)
+		{
+			for (int j = 0; j < len4; j += 4)
+			{
+				float32x4_t vdata = vld1q_f32(data + j);
+				float32x4_t vret = vld1q_f32(ret + j + i);
+				vret = vaddq_f32(vret, vdata);
+				vst1q_f32(ret + j + i, vret);
+			}
+			for (int j = len4; j < len; j++)
+				ret[j + i] += data[j];
+		}
+		int lim = 2 + (len - 4) / 4 * 4;
+		for (int i = 2; i < lim; i += 4)
+		{
+			float32x4_t vret = vld1q_f32(ret + i);
+			vret = vmulq_n_f32(vret, 0.2);
+			vst1q_f32(ret + i, vret);
+		}
+		for (int i = lim; i < len - 2; i++)
+			ret[i] /= 5;
+		ret[1] /= 4, ret[len - 2] /= 4;
+		ret[0] /= 3, ret[len - 1] /= 3;
+		return { ret,len };
 	}
+
 	std::pair<float *, int> stretch(float *data, int len, int newlen)
 	{
 		float rate = (float)newlen / len, _rate = 1 / rate;

@@ -150,9 +150,9 @@ std::pair<float *, int> filter(float *data, int len)
 				ret[j + i] += data[j];
 	for (int i = 2; i < len - 2; i++)
 		ret[i] /= 5;
-	ret[1] /= 4, ret[len - 1] /= 4;
-	ret[0] /= 3, ret[len] /= 3;
-	return { data,len };
+	ret[1] /= 4, ret[len - 2] /= 4;
+	ret[0] /= 3, ret[len - 1] /= 3;
+	return { ret,len };
 }
 
 std::pair<float *, int> read(char *path)
