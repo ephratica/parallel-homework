@@ -6,6 +6,7 @@
 #include <math.h>
 #include <semaphore.h>
 #include<sys/time.h>
+#include <unistd.h>
 #include <arm_neon.h>
 
 struct timeval tv_begin, tv_end;
@@ -77,80 +78,101 @@ void change(Complex *y, int len) {
 }
 
 
-sem_t	sem_children;
-queue<Node *>pool;
-pthread_mutex_t mutex_for_todo = PTHREAD_MUTEX_INITIALIZER;
+sem_t	sem_children[7],sem_p[7],sem_q[7];
+queue<Node *>pool[7];
 void *fft_pthread(void *a){
-    while (true) {
-        sem_wait(&sem_children);
-        while (pthread_mutex_trylock(&mutex_for_todo) != 0);
-        Node* tt = pool.front();
-        pool.pop();
-        pthread_mutex_unlock(&mutex_for_todo);
-        if(tt== nullptr){
-            return nullptr;
-        }
-        int j=tt->temp[0],h=tt->temp[1],on=tt->temp[2];
-        Complex *y=tt->cp;
-        Complex w(1, 0);
-        Complex wn(cos(2 * PI / h), sin(on * 2 * PI / h));
-        if(h/2>=4){
-            Complex b[4]={wn*wn*wn*wn,wn*wn*wn*wn,wn*wn*wn*wn,wn*wn*wn*wn},
-                    c[4]={w, w*wn, w*wn*wn, w*wn*wn*wn};
-            float32x4x2_t temp= vld2q_f32((const float32_t*)b),w1= vld2q_f32((const float32_t*)c);
-            for (int k = j; k < j + h / 2; k+=4){
-                float32x4x2_t u= vld2q_f32((const float32_t*)(y+k)),t= vld2q_f32((const float32_t*)(y+k+h/2));
-                t= f_mul(t,w1);
-                vst2q_f32((float32_t*)(y+k), f_add(u,t));
-                vst2q_f32((float32_t*)(y+k+h/2), f_sub(u,t));
-                w1= f_mul(w1,temp);
+    int id=*((int *)a);
+    while (true){
+        sem_wait(&sem_children[id]);
+        while (!pool[id].empty()) {
+            Node* tt = pool[id].front();
+            pool[id].pop();
+            if(tt== nullptr){
+                return nullptr;
             }
-        }
-        else{
-            for (int k = j; k < j + h / 2; k++) {
-                Complex u = y[k];
-                Complex t = w*y[k + h / 2];
-                y[k] = u+t;
-                y[k + h / 2] = u-t;
-                w = w*wn;
+            if(tt->cp== nullptr){ sem_post(&sem_p[id]);sem_wait(&sem_q[id]);break;}
+            int j=tt->temp[0],h=tt->temp[1],on=tt->temp[2];
+            Complex *y=tt->cp;
+            Complex w(1, 0);
+            Complex wn(cos(2 * PI / h), sin(on * 2 * PI / h));
+            if(h/2>=4){
+                Complex b[4]={wn*wn*wn*wn,wn*wn*wn*wn,wn*wn*wn*wn,wn*wn*wn*wn},
+                        c[4]={w, w*wn, w*wn*wn, w*wn*wn*wn};
+                float32x4x2_t temp= vld2q_f32((const float32_t*)b),w1= vld2q_f32((const float32_t*)c);
+                for (int k = j; k < j + h / 2; k+=4){
+                    float32x4x2_t u= vld2q_f32((const float32_t*)(y+k)),t= vld2q_f32((const float32_t*)(y+k+h/2));
+                    t= f_mul(t,w1);
+                    vst2q_f32((float32_t*)(y+k), f_add(u,t));
+                    vst2q_f32((float32_t*)(y+k+h/2), f_sub(u,t));
+                    w1= f_mul(w1,temp);
+                }
             }
+            else{
+                for (int k = j; k < j + h / 2; k++) {
+                    Complex u = y[k];
+                    Complex t = w*y[k + h / 2];
+                    y[k] = u+t;
+                    y[k + h / 2] = u-t;
+                    w = w*wn;
+                }
+            }
+            delete tt;
         }
-        delete tt;
     }
 }
+void *idft(void *a){
+    Node *tt=(Node*)a;
+    Complex *y=tt->cp;
+    int l=tt->temp[0],r=tt->temp[1],len=tt->temp[2];
+    if (len >= 4) {
+        for (int i = 0; i < len; i += 4) {
+            float32x4x2_t t = vld2q_f32((const float32_t *) (y + i));
+            t = f_div(t, len);
+            vst2q_f32((float32_t * )(y + i), t);
+        }
+    } else {
+        for (int i = 0; i < len; i++) {
+            y[i].x /= len;
+            y[i].y /= len;
+        }
+    }
+    delete tt;
+    return nullptr;
+}
 Complex* fft_p(Complex *y, int len, int on) {
-    pthread_mutex_init(&mutex_for_todo, NULL);
-    sem_init(&sem_children, 0, 0);
+    for(int i=0;i<7;i++)
+        sem_init(&sem_children[i], 0, 0),
+        sem_init(&sem_p[i], 0, 0),
+        sem_init(&sem_q[i], 0, 0);
     pthread_t threads[7];
-    for (auto& th : threads) {pthread_create(&th, nullptr, fft_pthread, nullptr);}
+    for(int i=0;i<7;i++) {int *a=new int(i);pthread_create(&threads[i], nullptr, fft_pthread, a);}
     for (auto& th : threads) {pthread_detach(th);}
     change(y, len);
     for (int h = 2; h <= len; h <<= 1) {
-        pthread_mutex_lock(&mutex_for_todo);
         for (int j = 0; j < len; j += h) {
             Node *temp=new Node(y,j,h,on);
-            pool.push(temp);
-            sem_post(&sem_children);
+            pool[(j/h)%7].push(temp);
         }
-        for(int i=0;i<7;i++) {
-            pool.push(nullptr);
-            sem_post(&sem_children);
+        for(int i=0;i<7;i++){
+            Node *temp=new Node(nullptr,0,0,0);
+            pool[i].push(temp);
+            sem_post(&sem_children[i]);
         }
-        pthread_mutex_unlock(&mutex_for_todo);
+        for(int i=0;i<7;i++){ sem_wait(&sem_p[i]);sem_post(&sem_q[i]);}
+    }
+    for(int i=0;i<7;i++) {
+        pool[i].push(nullptr);
+        sem_post(&sem_children[i]);
     }
     if (on == -1) {
-        if (len >= 4) {
-            for (int i = 0; i < len; i += 4) {
-                float32x4x2_t t = vld2q_f32((const float32_t *) (y + i));
-                t = f_div(t, len);
-                vst2q_f32((float32_t * )(y + i), t);
-            }
-        } else {
-            for (int i = 0; i < len; i++) {
-                y[i].x /= len;
-                y[i].y /= len;
-            }
+        int s=0,block=len/7+1;
+        pthread_t threads[7];
+        for (auto& th : threads) {
+            Node *p=new Node(y,s,min(len,s+block),len);
+            s+=block;
+            pthread_create(&th, nullptr, idft, p);
         }
+        for (auto& th : threads) {pthread_detach(th);}
     }
     return y;
 }
@@ -176,7 +198,7 @@ Complex* fft(Complex *y, int len, int on) {
     }
     return y;
 }
-Complex y[(1<<25)+10],yy[(1<<25)+10];
+Complex y[1<<25],yy[1<<25];
 int main(){
 
     for (int i = 0; i < (1<<25); i++) {
@@ -186,14 +208,14 @@ int main(){
     for (int i = 0; i < 10; ++i)
         fft(yy,1<<20,1);
     gettimeofday(&tv_begin,NULL);
-    fft(yy,1<<23,1);
+    fft(yy,1<<20,1);
     gettimeofday(&tv_end,NULL);
     long long sb=tv_begin.tv_sec*(1e6)+tv_begin.tv_usec,se=tv_end.tv_sec*(1e6)+tv_end.tv_usec;
     printf("normal: %lld\n",se-sb);
     gettimeofday(&tv_begin,NULL);
-    fft_p(y,1<<23,1);
+    fft_p(y,1<<20,1);
     gettimeofday(&tv_end,NULL);
     sb=tv_begin.tv_sec*(1e6)+tv_begin.tv_usec,se=tv_end.tv_sec*(1e6)+tv_end.tv_usec;
-    printf("pyhread: %lld\n",se-sb);
+    printf("pthread: %lld\n",se-sb);
     return 0;
 }
