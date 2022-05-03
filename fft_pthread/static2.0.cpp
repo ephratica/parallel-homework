@@ -157,19 +157,6 @@ int main(){
         y[i].x = yy[i].x = rand();
         y[i].y = yy[i].y = rand();
     }
-//    fft_p(y,1<<4,1);
-//    fft(yy,1<<4,1);
-//    for(int i=0;i<1<<4;i++){
-//        printf("%f %f\n",y[i].x,y[i].y);
-//        printf("%f %f\n",yy[i].x,yy[i].y);
-//    }
-//    printf("&&&&&&&&&&&&&&\n");
-//    fft_p(y,1<<4,-1);
-//    fft(yy,1<<4,-1);
-//    for(int i=0;i<1<<4;i++){
-//        printf("%f %f\n",y[i].x,y[i].y);
-//        printf("%f %f\n",yy[i].x,yy[i].y);
-//    }
     for (int i = 0; i < 10; ++i)
         fft(yy,1<<20,1);
     gettimeofday(&tv_begin,NULL);
