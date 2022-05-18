@@ -62,87 +62,53 @@ Complex* fft(Complex *y, int len, int on) {
     }
     return y;
 }
-Complex* fft_omp(Complex *y, int len, int on) {
+Complex* fft_omp(Complex *y, int len, int on,int pth) {
+    int pthr;
     change(y, len);
     for (int h = 2; h <= len; h <<= 1) {
         Complex wn(cos(2 * PI / h), sin(on * 2 * PI / h));
-#pragma omp parallel for num_threads(7)
-        {
-            for (int j = 0; j < len; j += h) {
-                Complex w(1, 0);
-                for (int k = j; k < j + h / 2; k++) {
-                    Complex u = y[k];
-                    Complex t = w * y[k + h / 2];
-                    y[k] = u + t;
-                    y[k + h / 2] = u - t;
-                    w = w * wn;
-                }
+#pragma omp parallel for num_threads(pth)
+        for (int j = 0; j < len; j += h) {
+            pthr=omp_get_num_threads();
+            Complex w(1, 0);
+            for (int k = j; k < j + h / 2; k++) {
+                Complex u = y[k];
+                Complex t = w * y[k + h / 2];
+                y[k] = u + t;
+                y[k + h / 2] = u - t;
+                w = w * wn;
             }
         }
 
     }
-#pragma omp parallel for num_threads(7)
-    {
-        if (on == -1) {
-            for (int i = 0; i < len; i++) {
-                y[i].x /= len;y[i].y/=len;
-            }
+
+    if (on == -1) {
+#pragma omp for
+        for (int i = 0; i < len; i++) {
+            y[i].x /= len;y[i].y/=len;
         }
     }
+    printf("%d\n",pthr);
     return y;
 }
-Complex* fft1(Complex *y, int len, int on) {
-    change(y, len);
-    for (int h = 2; h <= len; h <<= 1) {
-        Complex wn(cos(2 * PI / h), sin(on * 2 * PI / h));
-#pragma omp parallel for simd num_threads(7)
-        {
-            for (int j = 0; j < len; j += h) {
-                Complex w(1, 0);
-                for (int k = j; k < j + h / 2; k++) {
-                    Complex u = y[k];
-                    Complex t = w * y[k + h / 2];
-                    y[k] = u + t;
-                    y[k + h / 2] = u - t;
-                    w = w * wn;
-                }
-            }
-        }
-
-    }
-#pragma omp parallel for simd num_threads(7)
-    {
-        if (on == -1) {
-            for (int i = 0; i < len; i++) {
-                y[i].x /= len;y[i].y/=len;
-            }
-        }
-    }
-
-    return y;
-}
-Complex y[1<<28],yy[1<<28];
+Complex y[1<<20],yy[1<<20];
 int main(){
 
-    for (int i = 0; i < (1<<28); i++) {
+    for (int i = 0; i < (1<<20); i++) {
         y[i].x = yy[i].x = rand();
         y[i].y = yy[i].y = rand();
     }
     gettimeofday(&tv_begin,NULL);
-    fft(yy,1<<25,1);
+    fft(yy,1<<20,1);
     gettimeofday(&tv_end,NULL);
     long long sb=tv_begin.tv_sec*(1e6)+tv_begin.tv_usec,se=tv_end.tv_sec*(1e6)+tv_end.tv_usec;
     printf("normal: %lld\n",se-sb);
-    gettimeofday(&tv_begin,NULL);
-    fft_omp(y,1<<25,1);
-    gettimeofday(&tv_end,NULL);
-    sb=tv_begin.tv_sec*(1e6)+tv_begin.tv_usec,se=tv_end.tv_sec*(1e6)+tv_end.tv_usec;
-    printf("omp: %lld\n",se-sb);
-
-    gettimeofday(&tv_begin,NULL);
-    fft1(y,1<<25,1);
-    gettimeofday(&tv_end,NULL);
-    sb=tv_begin.tv_sec*(1e6)+tv_begin.tv_usec,se=tv_end.tv_sec*(1e6)+tv_end.tv_usec;
-    printf("omp with omp simd: %lld\n",se-sb);
+    for(int i=2;i<30;i++){
+        gettimeofday(&tv_begin,NULL);
+        fft_omp(y,1<<20,1,i);
+        gettimeofday(&tv_end,NULL);
+        long long sb=tv_begin.tv_sec*(1e6)+tv_begin.tv_usec,se=tv_end.tv_sec*(1e6)+tv_end.tv_usec;
+        printf("omp%d: %lld\n",i,se-sb);
+    }
     return 0;
 }
