@@ -6,6 +6,8 @@
 #include <math.h>
 #include <immintrin.h>
 #include <pthread.h>
+#include <iostream>
+#include <omp.h>
 #pragma comment(lib,"pthreadVC2.lib")
 
 __pragma(warning(disable : 4996))
@@ -358,11 +360,88 @@ std::pair<float *, int> ptime_scale(float *data, int len, float rate, int n, boo
 		pthread_create(tids + t, NULL, run, args + t);						//  创建线程
 	}
 	
-	for(int i = 0; i < n; i++)
-		pthread_join(tids[i],NULL);		//  等待所有线程结束
+	for (int i = 0; i < n; i++)
+	{
+		pthread_join(tids[i], NULL);		//  等待所有线程结束
+	}
 	delete[] tids;
 	delete[] args;
 	return { ret,newlen };				//  返回输出数组的地址与长度
+}
+std::pair<float *, int> _omptime_scale(float *data, int len, float rate, int n, bool useSIMD)
+{		//  data为输入数组，len为输入数组长度，rate为拉伸比例，n为线程数，useSIMD表示是否使用SIMD
+	len = len / 1024 * 1024;
+	int num = len / 1024;					//  将输入切割为适合处理的片段，num为片段数
+	int step = (num + n - 1) / n * 1024;	//  每个线程需要处理的子数列的长度，保证它是1024的倍数
+	int newlen = 0;
+	for (int i = 0; i < len; i += step)		//  计算输出的长度
+		newlen += std::min(step, len - i) / 1024 * floor(1024 * rate);
+	float *ret = new float[newlen];			//  为输出数列分配空间
+	pthread_t *tids = new pthread_t[n];
+	run_args *args = new run_args[n];
+
+	int cur_step = (int)(step / 1024 * floor(1024 * rate));
+#pragma omp parallel for num_threads(n)
+	for (int i = 0; i < len; i += step)
+	{
+		int t = i / step;
+		float *cur = ret + t * cur_step;
+	//	printf("i = %d, I am thread %d\n", i, omp_get_thread_num());
+		args[t] = { data + i,std::min(step, len - i),rate,cur,useSIMD };	//  确定参数
+	//	pthread_create(tids + t, NULL, run, args + t);						//  创建线程
+		run(args + t);
+	}
+
+	delete[] tids;
+	delete[] args;
+	return { ret,newlen };				//  返回输出数组的地址与长度
+}
+
+void segment_time_scale(float *data, float *out, float rate, bool useFFT = true)
+{
+	const int len = 1024;
+	int newlen = len * rate;
+	Complex *t = new Complex[len];
+	for (int j = 0; j < len; j++)
+		t[j] = data[j];
+
+	(useFFT ? DFT::dft : DFT::mydft)(t, len);
+	Complex *p = simd::stretch(t, len, useFFT ? 2048 : newlen).first;
+	(useFFT ? DFT::idft : DFT::myidft)(p, useFFT ? 2048 : newlen);
+
+	for (int j = 0; j < newlen; j++)
+		out[j] = p[j].x;
+}
+void segment_time_scale_nosimd(float *data, float *out, float rate, bool useFFT = true)
+{
+	const int len = 1024;
+	int newlen = len * rate;
+	Complex *t = new Complex[len];
+	for (int j = 0; j < len; j++)
+		t[j] = data[j];
+
+	(useFFT ? DFT::dft : DFT::mydft)(t, len);
+	Complex *p = stretch(t, len, useFFT ? 2048 : newlen).first;
+	(useFFT ? DFT::idft : DFT::myidft)(p, useFFT ? 2048 : newlen);
+
+	for (int j = 0; j < newlen; j++)
+		out[j] = p[j].x;
+}
+std::pair<float *, int> omptime_scale(float *data, int len, float rate, int n, bool useSIMD)
+{		//  data为输入数组，len为输入数组长度，rate为拉伸比例，n为线程数，useSIMD表示是否使用SIMD
+	len = len / 1024 * 1024;
+	int num = len / 1024;
+	int newlen = 1024 * rate;
+	float *ret = new float[newlen * num];
+
+#pragma omp parallel for num_threads(n)
+	for (int i = 0; i < num; i++)
+	{
+		(useSIMD ? segment_time_scale : segment_time_scale_nosimd)
+			(data + i * 1024, ret + i * newlen, rate, true);
+	}
+
+	return { ret,num * newlen };				//  返回输出数组的地址与长度
 }
 
 std::pair<float *, int> read(char *path)
@@ -390,7 +469,7 @@ void write(char *oldpath, char *newpath, float *data, int len)
 
 std::pair<float *, int> generate()
 {
-	const int len = 3000000;
+	const int len = 1000000;
 	float *data = new float[len];
 	for (int i = 0; i < len; i++)
 		data[i] = rand();
