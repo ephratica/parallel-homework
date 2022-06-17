@@ -84,24 +84,20 @@ void Init(){
 }
 void mympi(){
     int rank=0;
-    int block=N/Core;
+    int block=(1<<N)/Core;
     MPI_Status status;
     MPI_Init(NULL, NULL);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if(rank==0) {
-        gettimeofday(&tv_begin,NULL);
-        change(y, N);
-        for(int i=0;i<N;i+=block){
+        change(y, 1<<N);
+        for(int i=0;i<(1<<N);i+=block){
             MPI_Send(y+i, block*2, MPI_FLOAT, i/block+1, i/block+1, MPI_COMM_WORLD);
         }
-        for(int i=0;i<N;i+=block){
+        for(int i=0;i<(1<<N);i+=block){
             MPI_Recv(ty, block*2, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
             memcpy(&y[(status.MPI_TAG-1)*block], ty, sizeof(float) * block*2);
         }
-        fft_mpi(y,N,0,block*2);
-        gettimeofday(&tv_end,NULL);
-        sb=tv_begin.tv_sec*(1e6)+tv_begin.tv_usec,se=tv_end.tv_sec*(1e6)+tv_end.tv_usec;
-        printf("mpi: %lld\n",(se-sb));
+        fft_mpi(y,1<<N,0,block*2);
     }
     else if(rank!=0&&rank<=Core){
         MPI_Recv(ty, block*2, MPI_FLOAT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
